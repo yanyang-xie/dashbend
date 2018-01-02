@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"runtime"
 	"time"
+	"dashbend/dashbender/statistics"
 )
 
 func initLogger() *os.File {
@@ -52,7 +53,8 @@ func main() {
 	sender := sender.NewSender(reqChannel, reqResultChan, respValidationChan)
 	go sender.Start(ctx)
 
-
+	collector := statistics.NewResultCollector(reqResultChan)
+	go collector.Start(ctx)
 
 	//Wait for Ctrl+C, SIGINT
 	c := make(chan os.Signal, 1)

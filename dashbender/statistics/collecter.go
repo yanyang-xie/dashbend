@@ -1,11 +1,11 @@
 package statistics
 
 import (
-	"dashbend/dashbender/model"
-	"github.com/Sirupsen/logrus"
 	"context"
-	"sync"
+	"dashbend/dashbender/model"
 	"fmt"
+	"github.com/Sirupsen/logrus"
+	"sync"
 )
 
 //request time requestTimeMetrics
@@ -20,7 +20,7 @@ type TimeMetric struct {
 }
 
 func (t *TimeMetric) String() string {
-	return fmt.Sprintf("Min:%v, Max: %v, Count: %v", t.min, t.max, t.count)
+	return fmt.Sprintf("[%v-%v]:%v", t.min, t.max, t.count)
 }
 
 func (t *TimeMetric) increment(cTime int64) bool {
@@ -36,14 +36,14 @@ func (t *TimeMetric) increment(cTime int64) bool {
 
 type ResultCollector struct {
 	reqResultChan chan *model.ReqestResult
-	mutexLock *sync.RWMutex
+	mutexLock     *sync.RWMutex
 
-	totalCount int64
-	errorCount int64
+	totalCount     int64
+	errorCount     int64
 	totalTimeCount int64
 
 	statusCodeCountMap *map[int]int
-	timeMetricList *[]*TimeMetric
+	timeMetricList     *[]*TimeMetric
 }
 
 func NewResultCollector(reqestChan chan *model.ReqestResult) *ResultCollector {
@@ -51,7 +51,7 @@ func NewResultCollector(reqestChan chan *model.ReqestResult) *ResultCollector {
 	statusCodeCountMap := make(map[int]int, 0)
 	timeMetricList := generateTimeMetricList(requestTimeMetrics)
 
-	return &ResultCollector{reqestChan, mutex,0,0,0,&statusCodeCountMap, &timeMetricList}
+	return &ResultCollector{reqestChan, mutex, 0, 0, 0, &statusCodeCountMap, &timeMetricList}
 }
 
 func (r *ResultCollector) String() string {
@@ -59,27 +59,28 @@ func (r *ResultCollector) String() string {
 }
 
 func (r *ResultCollector) count(reqResult *model.ReqestResult) {
+	logrus.Debugf("Receive request result: %v", reqResult)
 	r.mutexLock.RLock()
 
 	//total count
 	r.totalCount += 1
 
 	//error count
-	if reqResult.IsError{
+	if reqResult.IsError {
 		r.errorCount += 1
 	}
 
 	//error sorter
 	statusCodeCountMap := *r.statusCodeCountMap
 	_, exist := statusCodeCountMap[reqResult.ResponseCode]
-	if !exist{
+	if !exist {
 		statusCodeCountMap[reqResult.ResponseCode] = 0
 	}
 	statusCodeCountMap[reqResult.ResponseCode] += 1
 
 	//time requestTimeMetrics
-	for _, timeMetric:= range *r.timeMetricList{
-		if timeMetric.increment(reqResult.RequestTime){
+	for _, timeMetric := range *r.timeMetricList {
+		if timeMetric.increment(reqResult.RequestTime) {
 			break
 		}
 	}

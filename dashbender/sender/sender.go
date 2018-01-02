@@ -4,12 +4,12 @@ import (
 	"context"
 	"dashbend/dashbender/cfg"
 	"dashbend/dashbender/model"
-	"github.com/Sirupsen/logrus"
-	"net/http"
-	"time"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"io/ioutil"
+	"net/http"
 	"strings"
+	"time"
 )
 
 type Sender struct {
@@ -27,7 +27,7 @@ func NewSender(reqChan chan *model.ReqestModel, reqResultChan chan *model.Reqest
 	}
 
 	//&http.DefaultClient
-	client = &http.Client{Transport: tr, Timeout: time.Duration(cfg.HttpRequestConf.Timeout) * time.Second}
+	client := &http.Client{Transport: tr, Timeout: time.Duration(cfg.HttpRequestConf.Timeout) * time.Second}
 	return &Sender{
 		client,
 		reqChan,
@@ -48,7 +48,6 @@ func (s *Sender) Start(ctx context.Context) {
 			return
 		}
 	}
-
 
 }
 
@@ -83,7 +82,7 @@ func (s *Sender) sendRequest(reqModel *model.ReqestModel) {
 	}
 
 	start := time.Now()
-	resp, err := client.Do(req)
+	resp, err := s.client.Do(req)
 	defer resp.Body.Close()
 
 	if err != nil {
@@ -107,7 +106,7 @@ func (s *Sender) sendRequest(reqModel *model.ReqestModel) {
 			s.reqResultChan <- reqResult
 
 			s.respValidationChan <- model.NewRespValidationModel(resp.Request, respBodyString)
-			logrus.Debugf("ResponseBody: %v", respBodyString)
+			//logrus.Debugf("ResponseBody: %v", respBodyString)
 		} else {
 			reqResult.IsError = true
 			reqResult.ResponseErrorMessage = resp.Status
