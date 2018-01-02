@@ -38,6 +38,11 @@ func init(){
 	flag.StringVar(&ConfigFile, "configFile", "config.ini", "Configuration file for benchmark test, default is config.ini")
 	flag.Parse()
 
+	loadConfFromINI()
+	updateConfFromDB()
+}
+
+func loadConfFromINI(){
 	conf, err := config.NewConfig("ini", ConfigFile)
 	if err != nil {
 		fmt.Printf("Failed to load conf from file %v, err: %v", ConfigFile, err)
@@ -61,4 +66,9 @@ func init(){
 	}else{
 		LogConf.LogLevel = level
 	}
+}
+
+//@todo read config from DB, and then update config. 应该单独产生一个db的类, 为这里和周期性sync db config做准备
+func updateConfFromDB(){
+
 }

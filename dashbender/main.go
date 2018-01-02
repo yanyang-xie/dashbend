@@ -42,9 +42,9 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	reqChannel := make(chan *model.ReqestModel, 0)
-	reqResultChan := make(chan *model.ReqestResult, 0)
-	respValidationChan := make(chan *http.Response, 0)
+	reqChannel := make(chan *model.ReqestModel, 10000)
+	reqResultChan := make(chan *model.ReqestResult, 10000)
+	respValidationChan := make(chan *http.Response, 10000)
 
 	sender := sender.NewSender(reqChannel,reqResultChan,respValidationChan)
 	sender.Start(ctx)

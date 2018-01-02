@@ -6,17 +6,32 @@ import (
 	"github.com/Sirupsen/logrus"
 	"net/http"
 	"dashbend/dashbender/model"
+	"dashbend/dashbender/cfg"
+	//"fmt"
+	//"io/ioutil"
+	//"strings"
 )
 
 type Sender struct{
+	client *http.Client
 	reqChan chan *model.ReqestModel
-
 	reqResultChan chan *model.ReqestResult
-	respValidationChan chan *http.Response
+	respValidationChan chan *model.RespValidationModel
+
 }
 
-func NewSender(reqChan chan *model.ReqestModel, reqResultChan chan *model.ReqestResult, respValidationChan chan *http.Response) *Sender{
+func NewSender(reqChan chan *model.ReqestModel, reqResultChan chan *model.ReqestResult, respValidationChan chan *model.RespValidationModel) *Sender{
+	tr := &http.Transport{
+		MaxIdleConns:        10000,
+		IdleConnTimeout:     30 * time.Second,
+		MaxIdleConnsPerHost: 10000,
+
+	}
+
+	//&http.DefaultClient
+	client = &http.Client{Transport: tr, Timeout:time.Duration(cfg.HttpRequestConf.Timeout) * time.Second}
 	return &Sender{
+		client,
 		reqChan,
 		reqResultChan,
 		respValidationChan,
@@ -42,59 +57,68 @@ func (s *Sender) send(req *model.ReqestModel){
 
 	switch req.Method {
 	case "post":
-		s.post(req)
+		req.Method = "POST"
 	default :
-		s.get(req)
+		req.Method = "GET"
 	}
+
+	s.sendRequest(req)
 }
 
-func (s *Sender) get(req *model.ReqestModel){
-	result := model.NewReqestResult()
+func (s *Sender) sendRequest(reqModel *model.ReqestModel){
+	logrus.Debugf("Send request: %v", reqModel)
+
+	/**
+	reqResult := model.NewReqestResult()
+
+	req, err := http.NewRequest(strings.ToUpper(reqModel.Method), reqModel.URL, strings.NewReader(reqModel.Body))
+	if err != nil{
+		logrus.Errorf("Failed to create request object. Err: %v", err.Error())
+		reqResult.IsError = true
+		reqResult.ResponseErrorMessage = fmt.Sprintf("Failed to create request object. Err: %v", err.Error())
+		s.reqResultChan <- reqResult
+		return
+	}
+
+	for key, value := range reqModel.Headers{
+		req.Header.Add(key, value)
+	}
 
 	start := time.Now()
-	resp, err := client.Get(req.URL)
+	resp, err := client.Do(req)
+	//如果传递给validation channel, 那么这里应该是复制resp, 原始的应该被close掉
+	defer resp.Body.Close()
 
-	r := model.NewReqestResult()
 	if err != nil {
-		r.IsError = true
-		r.ResponseErrorMessage = err.Error()
-		r.ResponseCode = resp.StatusCode
+		reqResult.IsError = true
+		reqResult.ResponseErrorMessage = err.Error()
+		reqResult.ResponseCode = resp.StatusCode
 
-		s.reqResultChan <- result
+		s.reqResultChan <- reqResult
 		return
 	}else{
-		r.RequestTime = getTimeTake(start)
-		s.reqResultChan <- result
+		reqResult.RequestTime = getTimeTake(start)
+		if resp.StatusCode == http.StatusOK{
+			//read response body
+			bodyBytes, err2 := ioutil.ReadAll(resp.Body)
+			bodyString := string(bodyBytes)
+
+			if err2 != nil{
+				reqResult.IsError = true
+				reqResult.ResponseErrorMessage = fmt.Sprintf("Failed to read respose body. Err: %v", err2)
+			}
+			s.reqResultChan <- reqResult
+
+			s.respValidationChan <- model.NewRespValidationModel(resp.Request, bodyString)
+		}else{
+			reqResult.IsError = true
+			reqResult.ResponseErrorMessage = resp.Status
+			reqResult.ResponseCode = resp.StatusCode
+			s.reqResultChan <- reqResult
+		}
 	}
-
-	defer resp.Body.Close()
-	s.respValidationChan <- resp
+	*/
 }
-
-func (s *Sender) post(req *model.ReqestModel){
-
-}
-
-
-/**
-//http://blog.csdn.net/shengzhu1/article/details/67633075
-func fetch(url string, ch chan<- string) {
-	start := time.Now()
-	resp, err := http.Get(url)
-	if err != nil {
-		ch <- fmt.Sprint(err) // send to channel ch
-		return
-	}
-	nbytes, err := io.Copy(ioutil.Discard, resp.Body)
-	resp.Body.Close() // don't leak resources
-	if err != nil {
-		ch <- fmt.Sprintf("while reading %s: %v", url, err)
-		return
-	}
-	secs := time.Since(start).Seconds()
-	ch <- fmt.Sprintf("%.2fs  %7d  %s", secs, nbytes, url)
-}
-*/
 
 func getTimeTake(startTime time.Time) int64 {
 	return int64(time.Now().Sub(startTime) / 1000000)

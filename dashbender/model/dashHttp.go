@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"strings"
+	"net/http"
 )
 
 type ReqestModel struct{
@@ -49,7 +50,33 @@ func (r *ReqestResult) String() string {
 
 func NewReqestResult() *ReqestResult{
 	return &ReqestResult{
-		ResponseCode: 200,
+		ResponseCode: http.StatusOK,
 		IsError:false,
 	}
 }
+
+type RespValidationModel struct{
+	req *http.Request
+	reponseBody string
+}
+
+func NewRespValidationModel(req *http.Request, reponseBody string) *RespValidationModel{
+	return &RespValidationModel{
+		req,
+		reponseBody,
+	}
+}
+
+func (r *RespValidationModel) String() string {
+	return fmt.Sprintf("Request: %v, ResponseBody: %v", r.req, r.reponseBody)
+}
+
+
+//record reponse validation result
+type RespValidationResult struct {
+	totalCount int64
+	errorCount int64
+
+	errorDetailList []string
+}
+
