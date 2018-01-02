@@ -1,18 +1,20 @@
 package main
 
 import (
-	"os"
 	"context"
+	"dashbend/dashbender/cfg"
+	"dashbend/dashbender/model"
+	"dashbend/dashbender/producer"
+	"dashbend/dashbender/sender"
 	"fmt"
 	"github.com/Sirupsen/logrus"
-	"dashbend/dashbender/cfg"
+	"os"
+	"os/signal"
 	"runtime"
-	"dashbend/dashbender/model"
-	"net/http"
-	"dashbend/dashbender/sender"
+	"time"
 )
 
-func initLogger() *os.File{
+func initLogger() *os.File {
 	//@todo logfile的文件夹不存在的时候怎么处理?
 
 	f, err := os.OpenFile(cfg.LogConf.LogFilePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
@@ -29,8 +31,6 @@ func initLogger() *os.File{
 	formatter.FullTimestamp = true
 	logrus.SetFormatter(formatter)
 
-	logrus.Debugf("this is first log")
-
 	return f
 }
 
@@ -44,10 +44,28 @@ func main() {
 
 	reqChannel := make(chan *model.ReqestModel, 10000)
 	reqResultChan := make(chan *model.ReqestResult, 10000)
-	respValidationChan := make(chan *http.Response, 10000)
+	respValidationChan := make(chan *model.RespValidationModel, 10000)
 
-	sender := sender.NewSender(reqChannel,reqResultChan,respValidationChan)
-	sender.Start(ctx)
+	producer := producer.NewProducer(reqChannel)
+	go producer.Start(ctx)
+
+	sender := sender.NewSender(reqChannel, reqResultChan, respValidationChan)
+	go sender.Start(ctx)
+
+
+
+	//Wait for Ctrl+C, SIGINT
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Kill)
+	select {
+	case s := <-c:
+		logrus.Errorf("Received Signal: %v", s)
+		break
+	}
 
 	cancel()
+	logrus.Info("Wait 10 seconds for application to exit ....")
+	time.Sleep(10 * time.Second)
+	logrus.Info("Application has gracefully exited!")
 }

@@ -2,20 +2,20 @@ package model
 
 import (
 	"fmt"
-	"strings"
 	"net/http"
+	"strings"
 )
 
-type ReqestModel struct{
-	URL string //url with parameters
-	Method string
+type ReqestModel struct {
+	URL     string //url with parameters
+	Method  string
 	Headers map[string]string
-	Body string
+	Body    string
 }
 
-func NewReqestModel(url string, method string) *ReqestModel{
+func NewReqestModel(url string, method string) *ReqestModel {
 	return &ReqestModel{
-		URL:strings.TrimSpace(url),
+		URL:    strings.TrimSpace(url),
 		Method: strings.TrimSpace(strings.ToLower(method)),
 	}
 }
@@ -24,23 +24,23 @@ func (r *ReqestModel) String() string {
 	return fmt.Sprintf("URL: %v, Method: %v, Headers: %v, Body: %v", r.URL, r.Method, r.Headers, r.Body)
 }
 
-func (r *ReqestModel) addHeader(key, value string){
-	if r.Headers == nil{
+func (r *ReqestModel) addHeader(key, value string) {
+	if r.Headers == nil {
 		r.Headers = make(map[string]string, 0)
 	}
 
 	r.Headers[key] = value
 }
 
-func (r *ReqestModel) setBody(body string){
+func (r *ReqestModel) setBody(body string) {
 	r.Body = body
 }
 
 type ReqestResult struct {
 	RequestTime int64
 
-	IsError bool //whether a http request is error
-	ResponseCode int
+	IsError              bool //whether a http request is error
+	ResponseCode         int
 	ResponseErrorMessage string
 }
 
@@ -48,19 +48,19 @@ func (r *ReqestResult) String() string {
 	return fmt.Sprintf("RequestTime: %v, ResponseCode: %v, IsError: %v, ResponseErrorMessage: %v", r.RequestTime, r.ResponseCode, r.IsError, r.ResponseErrorMessage)
 }
 
-func NewReqestResult() *ReqestResult{
+func NewReqestResult() *ReqestResult {
 	return &ReqestResult{
 		ResponseCode: http.StatusOK,
-		IsError:false,
+		IsError:      false,
 	}
 }
 
-type RespValidationModel struct{
-	req *http.Request
+type RespValidationModel struct {
+	req         *http.Request
 	reponseBody string
 }
 
-func NewRespValidationModel(req *http.Request, reponseBody string) *RespValidationModel{
+func NewRespValidationModel(req *http.Request, reponseBody string) *RespValidationModel {
 	return &RespValidationModel{
 		req,
 		reponseBody,
@@ -71,7 +71,6 @@ func (r *RespValidationModel) String() string {
 	return fmt.Sprintf("Request: %v, ResponseBody: %v", r.req, r.reponseBody)
 }
 
-
 //record reponse validation result
 type RespValidationResult struct {
 	totalCount int64
@@ -79,4 +78,3 @@ type RespValidationResult struct {
 
 	errorDetailList []string
 }
-

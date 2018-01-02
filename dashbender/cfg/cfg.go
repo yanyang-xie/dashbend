@@ -1,26 +1,26 @@
 package cfg
 
 import (
-	"github.com/astaxie/beego/config"
-	"fmt"
 	"flag"
-	"os"
+	"fmt"
 	"github.com/Sirupsen/logrus"
+	"github.com/astaxie/beego/config"
+	"os"
 )
 
 type (
-	logConf struct{
-		LogLevel logrus.Level
+	logConf struct {
+		LogLevel    logrus.Level
 		LogFilePath string
 	}
 
-	benchmarkConf struct{
+	benchmarkConf struct {
 		BRate int
 	}
 
-	httpRequestConf struct{
-		UrlFile string
-		Timeout int
+	httpRequestConf struct {
+		UrlFile    string
+		Timeout    int
 		RetryCount int
 		RetryDelay int
 	}
@@ -29,12 +29,12 @@ type (
 var (
 	ConfigFile string
 
-	LogConf = &logConf{}
-	BenchmarkConf = &benchmarkConf{}
+	LogConf         = &logConf{}
+	BenchmarkConf   = &benchmarkConf{}
 	HttpRequestConf = &httpRequestConf{}
 )
 
-func init(){
+func init() {
 	flag.StringVar(&ConfigFile, "configFile", "config.ini", "Configuration file for benchmark test, default is config.ini")
 	flag.Parse()
 
@@ -42,7 +42,7 @@ func init(){
 	updateConfFromDB()
 }
 
-func loadConfFromINI(){
+func loadConfFromINI() {
 	conf, err := config.NewConfig("ini", ConfigFile)
 	if err != nil {
 		fmt.Printf("Failed to load conf from file %v, err: %v", ConfigFile, err)
@@ -61,14 +61,14 @@ func loadConfFromINI(){
 	//init log conf
 	LogConf.LogFilePath = conf.DefaultString("logs::logPath", "benchmark.log")
 	level, err := logrus.ParseLevel(conf.DefaultString("logs::logLevel", "info"))
-	if err != nil{
+	if err != nil {
 		LogConf.LogLevel = logrus.InfoLevel
-	}else{
+	} else {
 		LogConf.LogLevel = level
 	}
 }
 
 //@todo read config from DB, and then update config. 应该单独产生一个db的类, 为这里和周期性sync db config做准备
-func updateConfFromDB(){
+func updateConfFromDB() {
 
 }
