@@ -25,6 +25,10 @@ type (
 		RetryCount int
 		RetryDelay int
 	}
+
+	reportConf struct{
+		ListenPort int
+	}
 )
 
 var (
@@ -33,6 +37,7 @@ var (
 	LogConf         = &logConf{}
 	BenchmarkConf   = &benchmarkConf{}
 	HttpRequestConf = &httpRequestConf{}
+	ReportConf = &reportConf{}
 )
 
 func init() {
@@ -54,20 +59,23 @@ func loadConfFromINI() {
 	BenchmarkConf.BRate = conf.DefaultInt("benchmark::rate", 10)
 
 	//init http request conf
-	HttpRequestConf.UrlFile = conf.DefaultString("http::urlFile", "urls.txt")
+	HttpRequestConf.UrlFile = conf.DefaultString("http::url_file", "urls.txt")
 	HttpRequestConf.Timeout = conf.DefaultInt("http::timeout", 6)
-	HttpRequestConf.RetryCount = conf.DefaultInt("http::retryCount", 0)
-	HttpRequestConf.RetryDelay = conf.DefaultInt("http::retryDelay", 1)
+	HttpRequestConf.RetryCount = conf.DefaultInt("http::retry_count", 0)
+	HttpRequestConf.RetryDelay = conf.DefaultInt("http::retry_delay", 1)
 
 	//init log conf
-	LogConf.LogFileDir = conf.DefaultString("logs::logFileDir", "")
-	LogConf.LogFileName = conf.DefaultString("logs::logFileName", "benchmark.log")
-	level, err := logrus.ParseLevel(conf.DefaultString("logs::logLevel", "info"))
+	LogConf.LogFileDir = conf.DefaultString("logs::log_file_dir", "")
+	LogConf.LogFileName = conf.DefaultString("logs::log_file_name", "benchmark.log")
+	level, err := logrus.ParseLevel(conf.DefaultString("logs::log_level", "info"))
 	if err != nil {
 		LogConf.LogLevel = logrus.InfoLevel
 	} else {
 		LogConf.LogLevel = level
 	}
+
+	//init report
+	ReportConf.ListenPort = conf.DefaultInt("report::listen_port", 9000)
 }
 
 //@todo read config from DB, and then update config. 应该单独产生一个db的类, 为这里和周期性sync db config做准备

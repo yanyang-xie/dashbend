@@ -47,9 +47,15 @@ func initLogger() *os.File {
 }
 
 func startReportServer(){
-	logrus.Infof("Start Report Service...")
+	logrus.Infof("Start Report Service[:%v]...", cfg.ReportConf.ListenPort)
 	http.HandleFunc("/report", statistics.ReportHandler)
-	http.ListenAndServe(":9000", nil)
+
+	listen := fmt.Sprintf(":%v", cfg.ReportConf.ListenPort)
+	err := http.ListenAndServe(listen, nil)
+	if err != nil{
+		fmt.Printf("Error start report service. Error: %v", err)
+		os.Exit(0)
+	}
 }
 
 func main() {
