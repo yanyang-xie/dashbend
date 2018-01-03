@@ -48,12 +48,9 @@ func (s *Sender) Start(ctx context.Context) {
 			return
 		}
 	}
-
 }
 
 func (s *Sender) send(req *model.ReqestModel) {
-	logrus.Debugf("Do send: %v", req)
-
 	switch req.Method {
 	case "post":
 		req.Method = "POST"

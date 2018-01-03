@@ -13,6 +13,7 @@ import (
 	"dashbend/dashbender/statistics"
 	"net/http"
 	"strings"
+	"dashbend/dashbender/util"
 )
 
 func initLogger() *os.File {
@@ -46,6 +47,16 @@ func initLogger() *os.File {
 	return f
 }
 
+func initURLs(urlFile string) []string{
+	_, err := os.Stat(urlFile)
+	if err != nil{
+		fmt.Printf("Failed to check url file:%v. Error: %v", urlFile, err)
+		os.Exit(0)
+	}
+
+	return util.File2lines(urlFile)
+}
+
 func startReportServer(){
 	logrus.Infof("Start Report Service[:%v]...", cfg.ReportConf.ListenPort)
 	http.HandleFunc("/report", statistics.ReportHandler)
@@ -70,7 +81,7 @@ func main() {
 	reqResultChan := make(chan *model.ReqestResult, 10000)
 	respValidationChan := make(chan *model.RespValidationModel, 10000)
 
-	producer := producer.NewProducer(reqChannel)
+	producer := producer.NewProducer(reqChannel, initURLs(cfg.HttpRequestConf.UrlFile))
 	go producer.Start(ctx)
 
 	sender := sender.NewSender(reqChannel, reqResultChan, respValidationChan)

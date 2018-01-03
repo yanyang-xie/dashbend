@@ -6,15 +6,17 @@ import (
 	"dashbend/dashbender/model"
 	"github.com/Sirupsen/logrus"
 	"time"
+	"math/rand"
 )
 
 type Producer struct {
 	reqestChan chan *model.ReqestModel
 	rate       int
+	urls       []string
 }
 
-func NewProducer(reqestChan chan *model.ReqestModel) *Producer {
-	return &Producer{reqestChan: reqestChan, rate: cfg.BenchmarkConf.BRate}
+func NewProducer(reqestChan chan *model.ReqestModel, urls []string) *Producer {
+	return &Producer{reqestChan: reqestChan, rate: cfg.BenchmarkConf.BRate, urls:urls}
 }
 
 func (p *Producer) updateRate(rate int) {
@@ -48,7 +50,9 @@ func (p *Producer) ProduceWarmUpRequests() {
 func (p *Producer) ProduceRequests() {
 	var i int
 	for i = 0; i < p.rate; i++ {
-		req := model.NewReqestModel("http://www.baidu.com", "GET")
+		url := p.urls[rand.Intn(len(p.urls))]
+
+		req := model.NewReqestModel(url, "GET")
 		p.reqestChan <- req
 		logrus.Debugf("Put request into RequestModel channel. %v", req)
 	}
