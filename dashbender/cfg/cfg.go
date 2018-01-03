@@ -10,8 +10,9 @@ import (
 
 type (
 	logConf struct {
-		LogLevel    logrus.Level
-		LogFilePath string
+		LogLevel   logrus.Level
+		LogFileDir string
+		LogFileName string
 	}
 
 	benchmarkConf struct {
@@ -59,7 +60,8 @@ func loadConfFromINI() {
 	HttpRequestConf.RetryDelay = conf.DefaultInt("http::retryDelay", 1)
 
 	//init log conf
-	LogConf.LogFilePath = conf.DefaultString("logs::logPath", "benchmark.log")
+	LogConf.LogFileDir = conf.DefaultString("logs::logFileDir", "")
+	LogConf.LogFileName = conf.DefaultString("logs::logFileName", "benchmark.log")
 	level, err := logrus.ParseLevel(conf.DefaultString("logs::logLevel", "info"))
 	if err != nil {
 		LogConf.LogLevel = logrus.InfoLevel

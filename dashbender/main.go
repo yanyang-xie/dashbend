@@ -12,14 +12,27 @@ import (
 	"runtime"
 	"dashbend/dashbender/statistics"
 	"net/http"
+	"strings"
 )
 
 func initLogger() *os.File {
-	//@todo logfile的文件夹不存在的时候怎么处理?
+	logFileDir := cfg.LogConf.LogFileDir
+	if logFileDir != ""{
+		if !strings.HasPrefix(logFileDir, string(os.PathSeparator)){
+			fmt.Printf("Error create log dir: %v. Log dir must be started with '/'", logFileDir)
+			os.Exit(0)
+		}else{
+			if !strings.HasSuffix(logFileDir, string(os.PathSeparator)){
+				logFileDir += string(os.PathSeparator)
+			}
+			os.MkdirAll(logFileDir, 0777)
+		}
+	}
 
-	f, err := os.OpenFile(cfg.LogConf.LogFilePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
+	logFile := logFileDir + cfg.LogConf.LogFileName
+	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
-		fmt.Printf("error opening file: %v", err)
+		fmt.Printf("Error opening log file: %v, Error: %v", logFile, err)
 		os.Exit(0)
 	}
 
