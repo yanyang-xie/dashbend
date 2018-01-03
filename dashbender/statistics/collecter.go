@@ -40,7 +40,7 @@ type ResultCollector struct {
 	mutexLock     *sync.RWMutex
 
 	totalCount     int64
-	errorCount     int64
+	totalErrorCount     int64
 	totalTimeCount int64
 
 	statusCodeCountMap *map[int]int
@@ -56,7 +56,7 @@ func NewResultCollector(reqestChan chan *model.ReqestResult) *ResultCollector {
 }
 
 func (r *ResultCollector) String() string {
-	return fmt.Sprintf("Total request: %v, Total error: %v, Avg request time:%v, statusCodeCountMap: %v, timeMetricList: %v", r.totalCount, r.errorCount, r.totalTimeCount/r.totalCount, *r.statusCodeCountMap, *r.timeMetricList)
+	return fmt.Sprintf("Total request: %v, Total error: %v, Avg request time:%v, statusCodeCountMap: %v, timeMetricList: %v", r.totalCount, r.totalErrorCount, r.totalTimeCount/r.totalCount, *r.statusCodeCountMap, *r.timeMetricList)
 }
 
 func (r *ResultCollector) count(reqResult *model.ReqestResult) {
@@ -69,7 +69,7 @@ func (r *ResultCollector) count(reqResult *model.ReqestResult) {
 
 	//error count
 	if reqResult.IsError {
-		r.errorCount += 1
+		r.totalErrorCount += 1
 	}
 
 	//error sorter

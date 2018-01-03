@@ -16,6 +16,7 @@ type (
 	}
 
 	benchmarkConf struct {
+		WarmUpMinute int
 		BRate int
 	}
 
@@ -56,7 +57,8 @@ func loadConfFromINI() {
 	}
 
 	//init benchmark conf
-	BenchmarkConf.BRate = conf.DefaultInt("benchmark::rate", 10)
+	BenchmarkConf.BRate = conf.DefaultInt("benchmark::rate", 2)
+	BenchmarkConf.WarmUpMinute = conf.DefaultInt("benchmark::warmup_minute", 0)
 
 	//init http request conf
 	HttpRequestConf.UrlFile = conf.DefaultString("http::url_file", "urls.txt")

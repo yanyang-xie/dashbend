@@ -80,9 +80,15 @@ func (s *Sender) sendRequest(reqModel *model.ReqestModel) {
 
 	start := time.Now()
 	resp, err := s.client.Do(req)
-	if resp != nil || resp.Body != nil{
-		defer resp.Body.Close()
+	if resp == nil{
+		reqResult.IsError = true
+		reqResult.ResponseErrorMessage = err.Error()
+
+		s.reqResultChan <- reqResult
+		return
 	}
+
+	defer resp.Body.Close()
 
 	if err != nil {
 		reqResult.IsError = true
