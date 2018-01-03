@@ -70,11 +70,3 @@ func NewRespValidationModel(req *http.Request, reponseBody string) *RespValidati
 func (r *RespValidationModel) String() string {
 	return fmt.Sprintf("Request: %v, ResponseBody: %v", r.req, r.reponseBody)
 }
-
-//record reponse validation result
-type RespValidationResult struct {
-	totalCount int64
-	errorCount int64
-
-	errorDetailList []string
-}

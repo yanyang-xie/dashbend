@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"sync"
+	"time"
 )
 
 //request time requestTimeMetrics
@@ -20,7 +21,7 @@ type TimeMetric struct {
 }
 
 func (t *TimeMetric) String() string {
-	return fmt.Sprintf("[%v-%v]:%v", t.min, t.max, t.count)
+	return fmt.Sprintf("%v-%v:%v", t.min, t.max, t.count)
 }
 
 func (t *TimeMetric) increment(cTime int64) bool {
@@ -55,7 +56,7 @@ func NewResultCollector(reqestChan chan *model.ReqestResult) *ResultCollector {
 }
 
 func (r *ResultCollector) String() string {
-	return fmt.Sprintf("Total: %v, error: %v, statusCodeCountMap: %v, timeMetricList: %v", r.totalCount, r.errorCount, *r.statusCodeCountMap, *r.timeMetricList)
+	return fmt.Sprintf("Total request: %v, Total error: %v, Avg request time:%v, statusCodeCountMap: %v, timeMetricList: %v", r.totalCount, r.errorCount, r.totalTimeCount/r.totalCount, *r.statusCodeCountMap, *r.timeMetricList)
 }
 
 func (r *ResultCollector) count(reqResult *model.ReqestResult) {
@@ -64,6 +65,7 @@ func (r *ResultCollector) count(reqResult *model.ReqestResult) {
 
 	//total count
 	r.totalCount += 1
+	r.totalTimeCount += reqResult.RequestTime
 
 	//error count
 	if reqResult.IsError {
@@ -86,19 +88,24 @@ func (r *ResultCollector) count(reqResult *model.ReqestResult) {
 	}
 
 	r.mutexLock.RUnlock()
-
-	logrus.Debugf("Current counter: %v", r)
+	//logrus.Debugf("Current counter: %v", r)
 }
 
 func (r *ResultCollector) Start(ctx context.Context) {
 	logrus.Infof("Start Result Collector  ...")
 	defer logrus.Infof("Result Collector has stopped")
 
+	ticker := time.NewTicker(1 * time.Minute)
 	for {
 		select {
 		case reqResult := <-r.reqResultChan:
 			go r.count(reqResult)
+		case <- ticker.C:
+			//export counter
+			logrus.Infof("Counter:%v", r)
+			//@todo 把统计数据传递给reporter模块
 		case <-ctx.Done():
+			ticker.Stop()
 			return
 		}
 	}

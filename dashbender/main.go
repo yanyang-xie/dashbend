@@ -9,10 +9,9 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"os"
-	"os/signal"
 	"runtime"
-	"time"
 	"dashbend/dashbender/statistics"
+	"net/http"
 )
 
 func initLogger() *os.File {
@@ -28,11 +27,16 @@ func initLogger() *os.File {
 	//logrus.SetOutput(os.Stdout)
 	logrus.SetLevel(cfg.LogConf.LogLevel)
 	formatter := new(logrus.TextFormatter)
-	formatter.TimestampFormat = "1981-12-15 05:24:00"
 	formatter.FullTimestamp = true
 	logrus.SetFormatter(formatter)
 
 	return f
+}
+
+func startReportServer(){
+	logrus.Infof("Start Report Service...")
+	http.HandleFunc("/report", statistics.ReportHandler)
+	http.ListenAndServe(":9000", nil)
 }
 
 func main() {
@@ -56,18 +60,6 @@ func main() {
 	collector := statistics.NewResultCollector(reqResultChan)
 	go collector.Start(ctx)
 
-	//Wait for Ctrl+C, SIGINT
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	signal.Notify(c, os.Kill)
-	select {
-	case s := <-c:
-		logrus.Errorf("Received Signal: %v", s)
-		break
-	}
-
+	startReportServer()
 	cancel()
-	logrus.Info("Wait 10 seconds for application to exit ....")
-	time.Sleep(10 * time.Second)
-	logrus.Info("Application has gracefully exited!")
 }
