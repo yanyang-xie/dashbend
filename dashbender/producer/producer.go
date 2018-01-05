@@ -68,8 +68,13 @@ func (p *Producer) ProduceRequests(n int) {
 		url := p.urls[rand.Intn(len(p.urls))]
 
 		req := model.NewReqestModel(url, "GET")
-		p.reqestChan <- req
-		logrus.Debugf("Put request into RequestModel channel. %v", req)
+		if len(p.reqestChan) < cap(p.reqestChan){
+			p.reqestChan <- req
+			logrus.Debugf("Put request into RequestModel channel. %v", req)
+		}else {
+			logrus.Warningf("Put request into RequestModel channel failed because channel is full")
+		}
+
 	}
 }
 

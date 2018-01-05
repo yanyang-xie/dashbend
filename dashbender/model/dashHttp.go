@@ -56,8 +56,8 @@ func NewReqestResult() *ReqestResult {
 }
 
 type RespValidationModel struct {
-	req         *http.Request
-	reponseBody string
+	Req         *http.Request
+	ReponseBody string
 }
 
 func NewRespValidationModel(req *http.Request, reponseBody string) *RespValidationModel {
@@ -68,5 +68,5 @@ func NewRespValidationModel(req *http.Request, reponseBody string) *RespValidati
 }
 
 func (r *RespValidationModel) String() string {
-	return fmt.Sprintf("Request: %v, ResponseBody: %v", r.req, r.reponseBody)
+	return fmt.Sprintf("Request: %v, ResponseBody: %v", r.Req, r.ReponseBody)
 }

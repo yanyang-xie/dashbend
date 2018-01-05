@@ -109,9 +109,7 @@ func (s *Sender) sendRequest(reqModel *model.ReqestModel) {
 				reqResult.ResponseErrorMessage = fmt.Sprintf("Failed to read respose body. Err: %v", err2)
 			}
 			s.reqResultChan <- reqResult
-
 			s.respValidationChan <- model.NewRespValidationModel(resp.Request, respBodyString)
-			//logrus.Debugf("ResponseBody: %v", respBodyString)
 		} else {
 			reqResult.IsError = true
 			reqResult.ResponseErrorMessage = resp.Status

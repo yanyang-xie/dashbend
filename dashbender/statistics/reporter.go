@@ -33,15 +33,13 @@ func (r *Reporter) Start(ctx context.Context) {
 				reportData.totalResultData = reqResult
 			}
 			logrus.Infof("Request Counter: %v", reqResult)
-
 		case validationResultData := <-r.validationResultDataChan:
 			if validationResultData.IsDelta {
-				reportData.deltavValidationResultData = validationResultData
+				reportData.deltaValidationResultData = validationResultData
 			} else {
 				reportData.totalValidationResultData = validationResultData
 			}
-
-			logrus.Infof("Validation counter: %v", reportData)
+			logrus.Infof("Validation counter: %v", validationResultData)
 		case <-ctx.Done():
 			return
 		}
@@ -54,8 +52,12 @@ type ReportData struct {
 	totalResultData *ResultDataCollection
 
 	//validation result
-	deltavValidationResultData *validation.RespValidationData
-	totalValidationResultData  *validation.RespValidationData
+	deltaValidationResultData *validation.RespValidationData
+	totalValidationResultData *validation.RespValidationData
+}
+
+func (r *ReportData) String() string {
+	return fmt.Sprintf("%v, %v, %v, %v", r.totalResultData, r.totalValidationResultData, r.deltaResultData, r.deltaValidationResultData)
 }
 
 //@todo 通过api把report传递出去

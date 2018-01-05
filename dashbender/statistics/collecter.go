@@ -49,7 +49,7 @@ func NewResultCollector(reqestChan chan *model.ReqestResult, reqResultDataCollec
 	mutex := &sync.RWMutex{}
 
 	summarizedResult := NewResultDataCollection(false)
-	deltaResult := NewResultDataCollection(false)
+	deltaResult := NewResultDataCollection(true)
 
 	return &ResultCollector{reqestChan, reqResultDataCollection, mutex, deltaResult, summarizedResult}
 }
@@ -64,16 +64,11 @@ func (r *ResultCollector) Start(ctx context.Context) {
 		case reqResult := <-r.reqResultChan:
 			r.deltaResultData.count(reqResult, r.mutexLock)
 			r.totalResultData.count(reqResult, r.mutexLock)
-
-			//@todo send data to validator
-
 		case <-ticker.C:
 			//send request result data to reporter
-			r.reqResultDataCollection <- r.deltaResultData
-			r.reqResultDataCollection <- r.totalResultData
-			//logrus.Debugf("Counter:%v", r.deltaResultData)
-			//logrus.Debugf("Counter:%v", r.totalResultData)
-			//logrus.Debugf("Clear delta statistics data.")
+			r.reqResultDataCollection <- r.deltaResultData.clone()
+			r.reqResultDataCollection <- r.totalResultData.clone()
+
 			r.deltaResultData = NewResultDataCollection(true)
 		case <-ctx.Done():
 			ticker.Stop()
@@ -95,9 +90,9 @@ type ResultDataCollection struct {
 
 func (r *ResultDataCollection) String() string {
 	if r.IsDelta {
-		return fmt.Sprintf("Delta:      Total request: %v, Total error: %v, Avg request time:%v, StatusCodeCountMap: %v, TimeMetricList: %v", r.TotalCount, r.TotalErrorCount, r.TotalTimeCount/r.TotalCount, *r.StatusCodeCountMap, *r.TimeMetricList)
+		return fmt.Sprintf("Delta:      Total request: %10d, Total error: %v, Avg request time:%4d, StatusCodeCountMap: %v, TimeMetricList: %v", r.TotalCount, r.TotalErrorCount, r.TotalTimeCount/r.TotalCount, *r.StatusCodeCountMap, *r.TimeMetricList)
 	} else {
-		return fmt.Sprintf("Summarized: Total request: %v, Total error: %v, Avg request time:%v, StatusCodeCountMap: %v, TimeMetricList: %v", r.TotalCount, r.TotalErrorCount, r.TotalTimeCount/r.TotalCount, *r.StatusCodeCountMap, *r.TimeMetricList)
+		return fmt.Sprintf("Summarized: Total request: %10d, Total error: %v, Avg request time:%4d, StatusCodeCountMap: %v, TimeMetricList: %v", r.TotalCount, r.TotalErrorCount, r.TotalTimeCount/r.TotalCount, *r.StatusCodeCountMap, *r.TimeMetricList)
 	}
 }
 

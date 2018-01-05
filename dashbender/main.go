@@ -83,8 +83,8 @@ func main() {
 	reqResultChan := make(chan *model.ReqestResult, 10000)
 	respValidationChan := make(chan *model.RespValidationModel, 10000)
 
-	reqResultDataChan := make(chan *statistics.ResultDataCollection, 1)
-	validationResultDataChan := make(chan *validation.RespValidationData, 1)
+	reqResultDataChan := make(chan *statistics.ResultDataCollection, 10000)
+	validationResultDataChan := make(chan *validation.RespValidationData, 10000)
 
 	producer := producer.NewProducer(reqChannel, initURLs(cfg.HttpRequestConf.UrlFile))
 	go producer.Start(ctx)

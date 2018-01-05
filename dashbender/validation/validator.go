@@ -6,20 +6,97 @@ import (
 	"github.com/Sirupsen/logrus"
 	"sync"
 	"time"
+	"dashbend/dashbender/cfg"
+	"fmt"
 )
 
-//todo VEX Response validation
-// 也要和collector一样, summarized的
-
-//最多100个线程去做validation. 抽查的百分比应该是在collector处进行
 type ResultValidator struct {
+	//receive all the response from sender
 	respValidationChan   chan *model.RespValidationModel
+
+	//store validation result
 	validationResultChan chan *RespValidationData
 
-	mutexLock *sync.RWMutex
+	//only response to be validation can be stored in actualRespValidationChan. Determined by validation.percent
+	actualRespValidationChan chan *model.RespValidationModel
 
+	mutexLock *sync.RWMutex
 	deltaValidationData *RespValidationData
 	totalValidationData *RespValidationData
+
+	respReceivedCount int64
+	checkPoint int64
+}
+
+func NewResultValidator(respValidationChan chan *model.RespValidationModel, validationResultChan chan *RespValidationData) *ResultValidator {
+	mutex := &sync.RWMutex{}
+	deltaValidationData := NewRespValidationData(true)
+	totalValidationData := NewRespValidationData(false)
+
+	// using a channel of fixed channel to make the used resource of validation can be hold.
+	actualRespValidationChan := make(chan *model.RespValidationModel, cfg.ValidationConf.ThreadNum)
+	checkPoint := int64(float64(1)/cfg.ValidationConf.Percent)
+
+	return &ResultValidator{respValidationChan, validationResultChan, actualRespValidationChan, mutex, deltaValidationData, totalValidationData, 0, checkPoint}
+}
+
+func (r *ResultValidator) Start(ctx context.Context) {
+	logrus.Infof("Start Response Validator  ...")
+	defer logrus.Infof("Response Validator has stopped")
+	go r.validate(ctx)
+
+	ticker := time.NewTicker(1 * time.Minute)
+	for {
+		select {
+		case respModel := <-r.respValidationChan:
+			logrus.Debugf("Received %v", respModel)
+			r.addToActualValidation(respModel)
+		case <-ticker.C:
+			//send validation result data to reporter. need clone
+			r.validationResultChan <- r.deltaValidationData
+			r.validationResultChan <- r.totalValidationData
+
+			//new delta validation data recorder
+			r.deltaValidationData = NewRespValidationData(true)
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+func (r *ResultValidator) addToActualValidation(respVM *model.RespValidationModel){
+	r.mutexLock.RLock()
+	r.respReceivedCount += 1
+	r.mutexLock.RUnlock()
+
+	if r.respReceivedCount % r.checkPoint == 0 && len(r.actualRespValidationChan) < cap(r.actualRespValidationChan){
+		logrus.Infof("Put the response validation model into actual respose validation channel. Received:%v, checkponit: %v", r.respReceivedCount, r.checkPoint)
+		r.actualRespValidationChan <- respVM
+	}
+}
+
+func (r *ResultValidator) validate(ctx context.Context){
+	for {
+		select {
+		case respModel := <-r.actualRespValidationChan:
+			r.mutexLock.Lock()
+			(r.deltaValidationData).TotalCount += 1
+			(r.totalValidationData).TotalCount += 1
+			r.mutexLock.Unlock()
+
+			go r.doValidation(respModel)
+		case <-ctx.Done():
+			return
+		}
+	}
+
+}
+
+func (r *ResultValidator) doValidation(respModel *model.RespValidationModel){
+	// @todo if error happend, count the error, and put error messages into r.ErrorDetailList
+	logrus.Infof("Do validation...")
+
 }
 
 //record reponse validation result
@@ -31,44 +108,29 @@ type RespValidationData struct {
 	IsDelta         bool
 }
 
-func NewResultValidator(respValidationChan chan *model.RespValidationModel, validationResultChan chan *RespValidationData) *ResultValidator {
-	mutex := &sync.RWMutex{}
-	deltaValidationData := &RespValidationData{}
-	totalValidationData := &RespValidationData{}
-
-	return &ResultValidator{respValidationChan, validationResultChan, mutex, deltaValidationData, totalValidationData}
+func NewRespValidationData(isDelta bool) *RespValidationData{
+	return &RespValidationData{0,0, make([]string, 0), isDelta}
 }
 
-func (r *ResultValidator) Start(ctx context.Context) {
-	logrus.Infof("Start Response Validator  ...")
-	defer logrus.Infof("Response Validator has stopped")
-
-	ticker := time.NewTicker(1 * time.Minute)
-	for {
-		select {
-		case respModel := <-r.respValidationChan:
-			logrus.Debugf("Received %v", respModel)
-			//do validation and then count
-			//这里只能有固定的个线程去做validation, 不能影响主线程
-		case <-ticker.C:
-			//send validation result data to reporter
-
-			/**
-			r.reqResultDataCollection <- r.totalResultData
-			r.reqResultDataCollection <- r.deltaResultData
-
-			logrus.Infof("Counter:%v", r.deltaResultData)
-			logrus.Infof("Counter:%v", r.totalResultData)
-			logrus.Debugf("Clear delta statistics data.")
-			r.deltaResultData = NewResultDataCollection(true)
-			*/
-		case <-ctx.Done():
-			ticker.Stop()
-			return
-		}
+func (r *RespValidationData) String() string{
+	if r.IsDelta{
+		return fmt.Sprintf("Delta      validation: TotalCount:%10d, ErrorCount:%10d, Errors:%v", r.TotalCount, r.ErrorCount, r.ErrorDetailList)
+	}else{
+		return fmt.Sprintf("Summarized validation: TotalCount:%10d, ErrorCount:%10d, Errors:%v", r.TotalCount, r.ErrorCount, r.ErrorDetailList)
 	}
 }
 
-//这里应该是抽查, 而不是全部都检查. 从配置文件中读取抽查的百分比. 抽查的百分比应该是在collector处进行
+func (r *RespValidationData) clone() *RespValidationData {
+	vd := &RespValidationData{}
+	vd.IsDelta = r.IsDelta
+	vd.TotalCount = r.TotalCount
+	vd.ErrorCount = r.ErrorCount
 
-//这里和reporter哪里都是定期把统计数据传递给reporterChannel
+	errorDetailList := make([]string, 0)
+	for _, detail := range r.ErrorDetailList {
+		errorDetailList = append(errorDetailList, detail)
+	}
+	vd.ErrorDetailList = errorDetailList
+
+	return vd
+}

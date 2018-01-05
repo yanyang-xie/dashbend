@@ -30,6 +30,11 @@ type (
 	reportConf struct {
 		ListenPort int
 	}
+
+	validationConf struct{
+		Percent   float64
+		ThreadNum int
+	}
 )
 
 var (
@@ -39,6 +44,7 @@ var (
 	BenchmarkConf   = &benchmarkConf{}
 	HttpRequestConf = &httpRequestConf{}
 	ReportConf      = &reportConf{}
+	ValidationConf  = &validationConf{}
 )
 
 func init() {
@@ -65,6 +71,10 @@ func loadConfFromINI() {
 	HttpRequestConf.Timeout = conf.DefaultInt("http::timeout", 6)
 	HttpRequestConf.RetryCount = conf.DefaultInt("http::retry_count", 0)
 	HttpRequestConf.RetryDelay = conf.DefaultInt("http::retry_delay", 1)
+
+	//init response validation conf
+	ValidationConf.Percent = conf.DefaultFloat("validation::Percent", 1.0)
+	ValidationConf.ThreadNum = conf.DefaultInt("validation::thread_num", 100)
 
 	//init log conf
 	LogConf.LogFileDir = conf.DefaultString("logs::log_file_dir", "")
