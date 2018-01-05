@@ -10,14 +10,14 @@ import (
 
 type (
 	logConf struct {
-		LogLevel   logrus.Level
-		LogFileDir string
+		LogLevel    logrus.Level
+		LogFileDir  string
 		LogFileName string
 	}
 
 	benchmarkConf struct {
 		WarmUpMinute int
-		BRate int
+		BRate        int
 	}
 
 	httpRequestConf struct {
@@ -27,7 +27,7 @@ type (
 		RetryDelay int
 	}
 
-	reportConf struct{
+	reportConf struct {
 		ListenPort int
 	}
 )
@@ -38,7 +38,7 @@ var (
 	LogConf         = &logConf{}
 	BenchmarkConf   = &benchmarkConf{}
 	HttpRequestConf = &httpRequestConf{}
-	ReportConf = &reportConf{}
+	ReportConf      = &reportConf{}
 )
 
 func init() {

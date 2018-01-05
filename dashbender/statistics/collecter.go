@@ -36,20 +36,22 @@ func (t *TimeMetric) increment(cTime int64) bool {
 }
 
 type ResultCollector struct {
-	reqResultChan chan *model.ReqestResult
-	mutexLock     *sync.RWMutex
+	reqResultChan           chan *model.ReqestResult
+	reqResultDataCollection chan *ResultDataCollection
+
+	mutexLock *sync.RWMutex
 
 	deltaResultData *ResultDataCollection
 	totalResultData *ResultDataCollection
 }
 
-func NewResultCollector(reqestChan chan *model.ReqestResult) *ResultCollector {
+func NewResultCollector(reqestChan chan *model.ReqestResult, reqResultDataCollection chan *ResultDataCollection) *ResultCollector {
 	mutex := &sync.RWMutex{}
 
 	summarizedResult := NewResultDataCollection(false)
 	deltaResult := NewResultDataCollection(false)
 
-	return &ResultCollector{reqestChan, mutex, deltaResult, summarizedResult}
+	return &ResultCollector{reqestChan, reqResultDataCollection, mutex, deltaResult, summarizedResult}
 }
 
 func (r *ResultCollector) Start(ctx context.Context) {
@@ -62,14 +64,17 @@ func (r *ResultCollector) Start(ctx context.Context) {
 		case reqResult := <-r.reqResultChan:
 			r.deltaResultData.count(reqResult, r.mutexLock)
 			r.totalResultData.count(reqResult, r.mutexLock)
-		case <- ticker.C:
-			logrus.Infof("Counter:%v", r.deltaResultData)
-			logrus.Infof("Counter:%v", r.totalResultData)
 
-			//@todo 把统计数据传递给reporter模块
-			logrus.Debugf("Clear delta statistics data.")
+			//@todo send data to validator
+
+		case <-ticker.C:
+			//send request result data to reporter
+			r.reqResultDataCollection <- r.deltaResultData
+			r.reqResultDataCollection <- r.totalResultData
+			//logrus.Debugf("Counter:%v", r.deltaResultData)
+			//logrus.Debugf("Counter:%v", r.totalResultData)
+			//logrus.Debugf("Clear delta statistics data.")
 			r.deltaResultData = NewResultDataCollection(true)
-
 		case <-ctx.Done():
 			ticker.Stop()
 			return
@@ -78,47 +83,47 @@ func (r *ResultCollector) Start(ctx context.Context) {
 }
 
 type ResultDataCollection struct {
-	totalCount      int64
-	totalErrorCount int64
-	totalTimeCount  int64
+	TotalCount      int64
+	TotalErrorCount int64
+	TotalTimeCount  int64
 
-	statusCodeCountMap *map[int]int
-	timeMetricList     *[]*TimeMetric
+	StatusCodeCountMap *map[int]int
+	TimeMetricList     *[]*TimeMetric
 
-	isDelta bool
+	IsDelta bool
 }
 
 func (r *ResultDataCollection) String() string {
-	if r.isDelta{
-		return fmt.Sprintf("Delta:      Total request: %v, Total error: %v, Avg request time:%v, statusCodeCountMap: %v, timeMetricList: %v", r.totalCount, r.totalErrorCount, r.totalTimeCount/r.totalCount, *r.statusCodeCountMap, *r.timeMetricList)
-	}else{
-		return fmt.Sprintf("Summarized: Total request: %v, Total error: %v, Avg request time:%v, statusCodeCountMap: %v, timeMetricList: %v", r.totalCount, r.totalErrorCount, r.totalTimeCount/r.totalCount, *r.statusCodeCountMap, *r.timeMetricList)
+	if r.IsDelta {
+		return fmt.Sprintf("Delta:      Total request: %v, Total error: %v, Avg request time:%v, StatusCodeCountMap: %v, TimeMetricList: %v", r.TotalCount, r.TotalErrorCount, r.TotalTimeCount/r.TotalCount, *r.StatusCodeCountMap, *r.TimeMetricList)
+	} else {
+		return fmt.Sprintf("Summarized: Total request: %v, Total error: %v, Avg request time:%v, StatusCodeCountMap: %v, TimeMetricList: %v", r.TotalCount, r.TotalErrorCount, r.TotalTimeCount/r.TotalCount, *r.StatusCodeCountMap, *r.TimeMetricList)
 	}
 }
 
-func (r *ResultDataCollection) clone() *ResultDataCollection{
-	dc :=  &ResultDataCollection{}
-	dc.isDelta = r.isDelta
-	dc.totalCount = r.totalCount
-	dc.totalTimeCount = r.totalTimeCount
-	dc.totalErrorCount = r.totalErrorCount
+func (r *ResultDataCollection) clone() *ResultDataCollection {
+	dc := &ResultDataCollection{}
+	dc.IsDelta = r.IsDelta
+	dc.TotalCount = r.TotalCount
+	dc.TotalTimeCount = r.TotalTimeCount
+	dc.TotalErrorCount = r.TotalErrorCount
 
 	statusCodeCountMap := make(map[int]int, 0)
-	for k,v := range *r.statusCodeCountMap {
+	for k, v := range *r.StatusCodeCountMap {
 		statusCodeCountMap[k] = v
 	}
-	dc.statusCodeCountMap = &statusCodeCountMap
+	dc.StatusCodeCountMap = &statusCodeCountMap
 
 	metricsList := make([]*TimeMetric, 0)
-	for _, metric := range *r.timeMetricList{
+	for _, metric := range *r.TimeMetricList {
 		metricsList = append(metricsList, metric)
 	}
-	dc.timeMetricList = &metricsList
+	dc.TimeMetricList = &metricsList
 
 	return dc
 }
 
-func NewResultDataCollection(isDelta bool) *ResultDataCollection{
+func NewResultDataCollection(isDelta bool) *ResultDataCollection {
 	statusCodeCountMap := make(map[int]int, 0)
 	timeMetricList := generateTimeMetricList(requestTimeMetrics)
 
@@ -130,16 +135,16 @@ func (r *ResultDataCollection) count(reqResult *model.ReqestResult, lock *sync.R
 	lock.RLock()
 
 	//total count
-	r.totalCount += 1
-	r.totalTimeCount += reqResult.RequestTime
+	r.TotalCount += 1
+	r.TotalTimeCount += reqResult.RequestTime
 
 	//error count
 	if reqResult.IsError {
-		r.totalErrorCount += 1
+		r.TotalErrorCount += 1
 	}
 
 	//error sorter
-	statusCodeCountMap := *r.statusCodeCountMap
+	statusCodeCountMap := *r.StatusCodeCountMap
 	_, exist := statusCodeCountMap[reqResult.ResponseCode]
 	if !exist {
 		statusCodeCountMap[reqResult.ResponseCode] = 0
@@ -147,7 +152,7 @@ func (r *ResultDataCollection) count(reqResult *model.ReqestResult, lock *sync.R
 	statusCodeCountMap[reqResult.ResponseCode] += 1
 
 	//time requestTimeMetrics
-	for _, timeMetric := range *r.timeMetricList {
+	for _, timeMetric := range *r.TimeMetricList {
 		if timeMetric.increment(reqResult.RequestTime) {
 			break
 		}

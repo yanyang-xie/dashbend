@@ -1,9 +1,9 @@
 package util
 
 import (
-	"os"
 	"bufio"
 	"fmt"
+	"os"
 )
 
 func File2lines(filePath string) []string {

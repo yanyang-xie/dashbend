@@ -6,24 +6,25 @@ import (
 	"dashbend/dashbender/model"
 	"dashbend/dashbender/producer"
 	"dashbend/dashbender/sender"
+	"dashbend/dashbender/statistics"
+	"dashbend/dashbender/util"
+	"dashbend/dashbender/validation"
 	"fmt"
 	"github.com/Sirupsen/logrus"
+	"net/http"
 	"os"
 	"runtime"
-	"dashbend/dashbender/statistics"
-	"net/http"
 	"strings"
-	"dashbend/dashbender/util"
 )
 
 func initLogger() *os.File {
 	logFileDir := cfg.LogConf.LogFileDir
-	if logFileDir != ""{
-		if !strings.HasPrefix(logFileDir, string(os.PathSeparator)){
+	if logFileDir != "" {
+		if !strings.HasPrefix(logFileDir, string(os.PathSeparator)) {
 			fmt.Printf("Error create log dir: %v. Log dir must be started with '/'", logFileDir)
 			os.Exit(0)
-		}else{
-			if !strings.HasSuffix(logFileDir, string(os.PathSeparator)){
+		} else {
+			if !strings.HasSuffix(logFileDir, string(os.PathSeparator)) {
 				logFileDir += string(os.PathSeparator)
 			}
 			os.MkdirAll(logFileDir, 0777)
@@ -47,9 +48,9 @@ func initLogger() *os.File {
 	return f
 }
 
-func initURLs(urlFile string) []string{
+func initURLs(urlFile string) []string {
 	_, err := os.Stat(urlFile)
-	if err != nil{
+	if err != nil {
 		fmt.Printf("Failed to check url file:%v. Error: %v", urlFile, err)
 		os.Exit(0)
 	}
@@ -57,13 +58,13 @@ func initURLs(urlFile string) []string{
 	return util.File2lines(urlFile)
 }
 
-func startReportServer(){
+func startReportServer() {
 	logrus.Infof("Start Report Service[:%v]...", cfg.ReportConf.ListenPort)
 	http.HandleFunc("/report", statistics.ReportHandler)
 
 	listen := fmt.Sprintf(":%v", cfg.ReportConf.ListenPort)
 	err := http.ListenAndServe(listen, nil)
-	if err != nil{
+	if err != nil {
 		fmt.Printf("Error start report service. Error: %v", err)
 		os.Exit(0)
 	}
@@ -82,14 +83,23 @@ func main() {
 	reqResultChan := make(chan *model.ReqestResult, 10000)
 	respValidationChan := make(chan *model.RespValidationModel, 10000)
 
+	reqResultDataChan := make(chan *statistics.ResultDataCollection, 1)
+	validationResultDataChan := make(chan *validation.RespValidationData, 1)
+
 	producer := producer.NewProducer(reqChannel, initURLs(cfg.HttpRequestConf.UrlFile))
 	go producer.Start(ctx)
 
 	sender := sender.NewSender(reqChannel, reqResultChan, respValidationChan)
 	go sender.Start(ctx)
 
-	collector := statistics.NewResultCollector(reqResultChan)
+	collector := statistics.NewResultCollector(reqResultChan, reqResultDataChan)
 	go collector.Start(ctx)
+
+	validator := validation.NewResultValidator(respValidationChan, validationResultDataChan)
+	go validator.Start(ctx)
+
+	reporter := statistics.NewReportor(reqResultDataChan, validationResultDataChan)
+	go reporter.Start(ctx)
 
 	startReportServer()
 	cancel()

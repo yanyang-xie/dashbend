@@ -46,16 +46,16 @@ func (p *Producer) Start(ctx context.Context) {
 
 func (p *Producer) ProduceWarmUpRequests() {
 	warmupSteps := generateWarmUpSteps(p.rate, p.warmupMinute)
-	if warmupSteps == nil{
+	if warmupSteps == nil {
 		return
 	}
 
 	logrus.Infof("Start to generate warm up request. Warmup: %v minutes, Rate: %v", p.warmupMinute, warmupSteps)
-	for _, step := range warmupSteps{
+	for _, step := range warmupSteps {
 		sum := 0
 		for sum < 60 {
 			p.ProduceRequests(step)
-			time.Sleep(1*time.Second)
+			time.Sleep(1 * time.Second)
 			sum += 1
 		}
 

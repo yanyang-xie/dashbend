@@ -80,7 +80,7 @@ func (s *Sender) sendRequest(reqModel *model.ReqestModel) {
 
 	start := time.Now()
 	resp, err := s.client.Do(req)
-	if resp == nil{
+	if resp == nil {
 		reqResult.IsError = true
 		reqResult.ResponseErrorMessage = err.Error()
 
