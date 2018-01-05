@@ -43,7 +43,10 @@ func NewResultValidator(respValidationChan chan *model.RespValidationModel, vali
 func (r *ResultValidator) Start(ctx context.Context) {
 	logrus.Infof("Start Response Validator  ...")
 	defer logrus.Infof("Response Validator has stopped")
-	go r.validate(ctx)
+
+	for i := 0; i < cfg.ValidationConf.ThreadNum; i++ {
+		go r.startValidationWoker(ctx)
+	}
 
 	ticker := time.NewTicker(1 * time.Minute)
 	for {
@@ -52,9 +55,9 @@ func (r *ResultValidator) Start(ctx context.Context) {
 			logrus.Debugf("Received %v", respModel)
 			r.addToActualValidation(respModel)
 		case <-ticker.C:
-			//send validation result data to reporter. need clone
-			r.validationResultChan <- r.deltaValidationData
-			r.validationResultChan <- r.totalValidationData
+			//send validation result data to reporter.
+			r.validationResultChan <- r.deltaValidationData.clone()
+			r.validationResultChan <- r.totalValidationData.clone()
 
 			//new delta validation data recorder
 			r.deltaValidationData = NewRespValidationData(true)
@@ -71,21 +74,20 @@ func (r *ResultValidator) addToActualValidation(respVM *model.RespValidationMode
 	r.mutexLock.RUnlock()
 
 	if r.respReceivedCount % r.checkPoint == 0 && len(r.actualRespValidationChan) < cap(r.actualRespValidationChan){
-		logrus.Infof("Put the response validation model into actual respose validation channel. Received:%v, checkponit: %v", r.respReceivedCount, r.checkPoint)
 		r.actualRespValidationChan <- respVM
 	}
 }
 
-func (r *ResultValidator) validate(ctx context.Context){
+func (r *ResultValidator) startValidationWoker(ctx context.Context){
 	for {
 		select {
 		case respModel := <-r.actualRespValidationChan:
 			r.mutexLock.Lock()
-			(r.deltaValidationData).TotalCount += 1
-			(r.totalValidationData).TotalCount += 1
+			r.deltaValidationData.TotalCount += 1
+			r.totalValidationData.TotalCount += 1
 			r.mutexLock.Unlock()
 
-			go r.doValidation(respModel)
+			r.doValidation(respModel)
 		case <-ctx.Done():
 			return
 		}
@@ -95,8 +97,8 @@ func (r *ResultValidator) validate(ctx context.Context){
 
 func (r *ResultValidator) doValidation(respModel *model.RespValidationModel){
 	// @todo if error happend, count the error, and put error messages into r.ErrorDetailList
-	logrus.Infof("Do validation...")
-
+	logrus.Infof("Do validation. Received:%v, checkponit: %v", r.respReceivedCount, r.checkPoint)
+	logrus.Debugf("Do validation. Model:%v", respModel)
 }
 
 //record reponse validation result
