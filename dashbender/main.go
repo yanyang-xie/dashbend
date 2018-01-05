@@ -70,6 +70,7 @@ func startReportServer(){
 }
 
 func main() {
+	fmt.Printf("Start Benchmark test....")
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	f := initLogger()
