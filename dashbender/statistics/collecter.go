@@ -13,21 +13,21 @@ import (
 var requestTimeMetrics = []int64{0, 200, 500, 1000, 2000, 3000, 6000, 12000}
 
 type TimeMetric struct {
-	min   int64
-	max   int64
-	count int64
+	Min   int64
+	Max   int64
+	Count int64
 
 	lock *sync.RWMutex
 }
 
 func (t *TimeMetric) String() string {
-	return fmt.Sprintf("%v-%v:%v", t.min, t.max, t.count)
+	return fmt.Sprintf("%v-%v:%v", t.Min, t.Max, t.Count)
 }
 
 func (t *TimeMetric) increment(cTime int64) bool {
-	if t.min < cTime && cTime <= t.max {
+	if t.Min < cTime && cTime <= t.Max {
 		t.lock.RLock()
-		t.count += 1
+		t.Count += 1
 		t.lock.RUnlock()
 		return true
 	} else {
@@ -36,13 +36,13 @@ func (t *TimeMetric) increment(cTime int64) bool {
 }
 
 type ResultCollector struct {
-	reqResultChan           chan *model.ReqestResult
-	reqResultDataCollection chan *ResultDataCollection
+	ReqResultChan           chan *model.ReqestResult
+	ReqResultDataCollection chan *ResultDataCollection
 
-	mutexLock *sync.RWMutex
+	MutexLock *sync.RWMutex
 
-	deltaResultData *ResultDataCollection
-	totalResultData *ResultDataCollection
+	DeltaResultData *ResultDataCollection
+	TotalResultData *ResultDataCollection
 }
 
 func NewResultCollector(reqestChan chan *model.ReqestResult, reqResultDataCollection chan *ResultDataCollection) *ResultCollector {
@@ -61,15 +61,15 @@ func (r *ResultCollector) Start(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Minute)
 	for {
 		select {
-		case reqResult := <-r.reqResultChan:
-			r.deltaResultData.count(reqResult, r.mutexLock)
-			r.totalResultData.count(reqResult, r.mutexLock)
+		case reqResult := <-r.ReqResultChan:
+			r.DeltaResultData.count(reqResult, r.MutexLock)
+			r.TotalResultData.count(reqResult, r.MutexLock)
 		case <-ticker.C:
 			//send request result data to reporter
-			r.reqResultDataCollection <- r.deltaResultData.clone()
-			r.reqResultDataCollection <- r.totalResultData.clone()
+			r.ReqResultDataCollection <- r.DeltaResultData.clone()
+			r.ReqResultDataCollection <- r.TotalResultData.clone()
 
-			r.deltaResultData = NewResultDataCollection(true)
+			r.DeltaResultData = NewResultDataCollection(true)
 		case <-ctx.Done():
 			ticker.Stop()
 			return
@@ -129,11 +129,11 @@ func (r *ResultDataCollection) count(reqResult *model.ReqestResult, lock *sync.R
 	logrus.Debugf("Receive request result: %v", reqResult)
 	lock.RLock()
 
-	//total count
+	//total Count
 	r.TotalCount += 1
 	r.TotalTimeCount += reqResult.RequestTime
 
-	//error count
+	//error Count
 	if reqResult.IsError {
 		r.TotalErrorCount += 1
 	}
@@ -164,8 +164,8 @@ func generateTimeMetricList(metrics []int64) []*TimeMetric {
 		}
 
 		timeMetric := &TimeMetric{}
-		timeMetric.min = metrics[i-1]
-		timeMetric.max = m
+		timeMetric.Min = metrics[i-1]
+		timeMetric.Max = m
 		timeMetric.lock = &sync.RWMutex{}
 
 		metricsList = append(metricsList, timeMetric)

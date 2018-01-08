@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"net/http"
+	"encoding/json"
 )
 
 var reportData *ReportData
@@ -28,16 +29,16 @@ func (r *Reporter) Start(ctx context.Context) {
 		select {
 		case reqResult := <-r.reqResultDataChan:
 			if reqResult.IsDelta {
-				reportData.deltaResultData = reqResult
+				reportData.DeltaResultData = reqResult
 			} else {
-				reportData.totalResultData = reqResult
+				reportData.TotalResultData = reqResult
 			}
 			logrus.Infof("Request Counter: %v", reqResult)
 		case validationResultData := <-r.validationResultDataChan:
 			if validationResultData.IsDelta {
-				reportData.deltaValidationResultData = validationResultData
+				reportData.DeltaValidationResultData = validationResultData
 			} else {
-				reportData.totalValidationResultData = validationResultData
+				reportData.TotalValidationResultData = validationResultData
 			}
 			logrus.Infof("Validation counter: %v", validationResultData)
 		case <-ctx.Done():
@@ -48,20 +49,27 @@ func (r *Reporter) Start(ctx context.Context) {
 
 type ReportData struct {
 	//request result
-	deltaResultData *ResultDataCollection
-	totalResultData *ResultDataCollection
+	DeltaResultData *ResultDataCollection
+	TotalResultData *ResultDataCollection
 
 	//validation result
-	deltaValidationResultData *validation.RespValidationData
-	totalValidationResultData *validation.RespValidationData
+	DeltaValidationResultData *validation.RespValidationData
+	TotalValidationResultData *validation.RespValidationData
 }
 
 func (r *ReportData) String() string {
-	return fmt.Sprintf("%v, %v, %v, %v", r.totalResultData, r.totalValidationResultData, r.deltaResultData, r.deltaValidationResultData)
+	return fmt.Sprintf("%v, %v, %v, %v", r.TotalResultData, r.TotalValidationResultData, r.DeltaResultData, r.DeltaValidationResultData)
 }
 
-//@todo 通过api把report传递出去
 func ReportHandler(w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("Get report......")
-	fmt.Fprintf(w, "this is report")
+	jsonReportByte, err := json.Marshal(reportData)
+	if err != nil {
+		logrus.Errorf("Fetch report failed. Error: %v", err.Error())
+		http.Error(w, "Fetch report failed.", http.StatusInternalServerError)
+	}else{
+		jsonReport := string(jsonReportByte)
+		logrus.Debugf("Fetch report: %v", jsonReport)
+		fmt.Fprintf(w, "%v", jsonReport)
+	}
+
 }

@@ -12,20 +12,20 @@ import (
 
 type ResultValidator struct {
 	//receive all the response from sender
-	respValidationChan   chan *model.RespValidationModel
+	RespValidationChan chan *model.RespValidationModel
 
 	//store validation result
-	validationResultChan chan *RespValidationData
+	ValidationResultChan chan *RespValidationData
 
-	//only response to be validation can be stored in actualRespValidationChan. Determined by validation.percent
-	actualRespValidationChan chan *model.RespValidationModel
+	//only response to be validation can be stored in ActualRespValidationChan. Determined by validation.percent
+	ActualRespValidationChan chan *model.RespValidationModel
 
-	mutexLock *sync.RWMutex
-	deltaValidationData *RespValidationData
-	totalValidationData *RespValidationData
+	MutexLock           *sync.RWMutex
+	DeltaValidationData *RespValidationData
+	TotalValidationData *RespValidationData
 
-	respReceivedCount int64
-	checkPoint int64
+	RespReceivedCount int64
+	CheckPoint        int64
 }
 
 func NewResultValidator(respValidationChan chan *model.RespValidationModel, validationResultChan chan *RespValidationData) *ResultValidator {
@@ -51,16 +51,16 @@ func (r *ResultValidator) Start(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Minute)
 	for {
 		select {
-		case respModel := <-r.respValidationChan:
+		case respModel := <-r.RespValidationChan:
 			logrus.Debugf("Received %v", respModel)
 			r.addToActualValidation(respModel)
 		case <-ticker.C:
 			//send validation result data to reporter.
-			r.validationResultChan <- r.deltaValidationData.clone()
-			r.validationResultChan <- r.totalValidationData.clone()
+			r.ValidationResultChan <- r.DeltaValidationData.clone()
+			r.ValidationResultChan <- r.TotalValidationData.clone()
 
 			//new delta validation data recorder
-			r.deltaValidationData = NewRespValidationData(true)
+			r.DeltaValidationData = NewRespValidationData(true)
 		case <-ctx.Done():
 			ticker.Stop()
 			return
@@ -69,23 +69,23 @@ func (r *ResultValidator) Start(ctx context.Context) {
 }
 
 func (r *ResultValidator) addToActualValidation(respVM *model.RespValidationModel){
-	r.mutexLock.RLock()
-	r.respReceivedCount += 1
-	r.mutexLock.RUnlock()
+	r.MutexLock.RLock()
+	r.RespReceivedCount += 1
+	r.MutexLock.RUnlock()
 
-	if r.respReceivedCount % r.checkPoint == 0 && len(r.actualRespValidationChan) < cap(r.actualRespValidationChan){
-		r.actualRespValidationChan <- respVM
+	if r.RespReceivedCount% r.CheckPoint == 0 && len(r.ActualRespValidationChan) < cap(r.ActualRespValidationChan){
+		r.ActualRespValidationChan <- respVM
 	}
 }
 
 func (r *ResultValidator) startValidationWoker(ctx context.Context){
 	for {
 		select {
-		case respModel := <-r.actualRespValidationChan:
-			r.mutexLock.Lock()
-			r.deltaValidationData.TotalCount += 1
-			r.totalValidationData.TotalCount += 1
-			r.mutexLock.Unlock()
+		case respModel := <-r.ActualRespValidationChan:
+			r.MutexLock.Lock()
+			r.DeltaValidationData.TotalCount += 1
+			r.TotalValidationData.TotalCount += 1
+			r.MutexLock.Unlock()
 
 			r.doValidation(respModel)
 		case <-ctx.Done():
@@ -97,7 +97,7 @@ func (r *ResultValidator) startValidationWoker(ctx context.Context){
 
 func (r *ResultValidator) doValidation(respModel *model.RespValidationModel){
 	// @todo if error happend, count the error, and put error messages into r.ErrorDetailList
-	logrus.Infof("Do validation. Received:%v, checkponit: %v", r.respReceivedCount, r.checkPoint)
+	logrus.Infof("Do validation. Received:%v, checkponit: %v", r.RespReceivedCount, r.CheckPoint)
 	logrus.Debugf("Do validation. Model:%v", respModel)
 }
 
