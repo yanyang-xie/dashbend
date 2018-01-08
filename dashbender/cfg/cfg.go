@@ -6,6 +6,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/astaxie/beego/config"
 	"os"
+	"time"
 )
 
 type (
@@ -45,6 +46,8 @@ var (
 	HttpRequestConf = &httpRequestConf{}
 	ReportConf      = &reportConf{}
 	ValidationConf  = &validationConf{}
+
+	BenchmarkStartTime = time.Now()
 )
 
 func init() {

@@ -2,11 +2,13 @@ package statistics
 
 import (
 	"context"
+	"dashbend/dashbender/cfg"
 	"dashbend/dashbender/validation"
+	"encoding/json"
 	"fmt"
 	"github.com/Sirupsen/logrus"
 	"net/http"
-	"encoding/json"
+	"time"
 )
 
 var reportData *ReportData
@@ -30,8 +32,10 @@ func (r *Reporter) Start(ctx context.Context) {
 		case reqResult := <-r.reqResultDataChan:
 			if reqResult.IsDelta {
 				reportData.DeltaResultData = reqResult
+				reportData.DeltaTimeTaken = int64(60)
 			} else {
 				reportData.TotalResultData = reqResult
+				reportData.TotalTimeTaken = getTimeTake(cfg.BenchmarkStartTime)
 			}
 			logrus.Infof("Request Counter: %v", reqResult)
 		case validationResultData := <-r.validationResultDataChan:
@@ -48,6 +52,10 @@ func (r *Reporter) Start(ctx context.Context) {
 }
 
 type ReportData struct {
+	//time taken from benchmart start (seconds)
+	DeltaTimeTaken int64
+	TotalTimeTaken int64
+
 	//request result
 	DeltaResultData *ResultDataCollection
 	TotalResultData *ResultDataCollection
@@ -66,10 +74,14 @@ func ReportHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logrus.Errorf("Fetch report failed. Error: %v", err.Error())
 		http.Error(w, "Fetch report failed.", http.StatusInternalServerError)
-	}else{
+	} else {
 		jsonReport := string(jsonReportByte)
 		logrus.Debugf("Fetch report: %v", jsonReport)
 		fmt.Fprintf(w, "%v", jsonReport)
 	}
 
+}
+
+func getTimeTake(startTime time.Time) int64 {
+	return int64(time.Now().Sub(startTime) / time.Second)
 }
