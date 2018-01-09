@@ -37,15 +37,15 @@ func (t *TimeMetric) increment(cTime int64) bool {
 
 type ResultCollector struct {
 	ReqResultChan           chan *model.ReqestResult
-	ReqResultDataCollection chan *ResultDataCollection
+	ReqResultDataCollection chan *ReqResultDataCollection
 
 	MutexLock *sync.RWMutex
 
-	DeltaResultData *ResultDataCollection
-	TotalResultData *ResultDataCollection
+	DeltaResultData *ReqResultDataCollection
+	TotalResultData *ReqResultDataCollection
 }
 
-func NewResultCollector(reqestChan chan *model.ReqestResult, reqResultDataCollection chan *ResultDataCollection) *ResultCollector {
+func NewResultCollector(reqestChan chan *model.ReqestResult, reqResultDataCollection chan *ReqResultDataCollection) *ResultCollector {
 	mutex := &sync.RWMutex{}
 
 	summarizedResult := NewResultDataCollection(false)
@@ -77,69 +77,69 @@ func (r *ResultCollector) Start(ctx context.Context) {
 	}
 }
 
-type ResultDataCollection struct {
-	TotalCount      int64
-	TotalErrorCount int64
-	TotalTimeCount  int64
+type ReqResultDataCollection struct {
+	TotalReqCount      int64
+	TotalReqErrorCount int64
+	TotalReqTimeCount  int64
 
-	StatusCodeCountMap *map[int]int
-	TimeMetricList     *[]*TimeMetric
+	ReqStatusCodeCountMap *map[int]int
+	ReqTimeMetricList     *[]*TimeMetric
 
 	IsDelta bool
 }
 
-func (r *ResultDataCollection) String() string {
+func (r *ReqResultDataCollection) String() string {
 	if r.IsDelta {
-		return fmt.Sprintf("Delta:      Total request: %10d, Total error: %v, Avg request time:%4d, StatusCodeCountMap: %v, TimeMetricList: %v", r.TotalCount, r.TotalErrorCount, r.TotalTimeCount/r.TotalCount, *r.StatusCodeCountMap, *r.TimeMetricList)
+		return fmt.Sprintf("Delta:      Total request: %10d, Total error: %v, Avg request time:%4d, ReqStatusCodeCountMap: %v, ReqTimeMetricList: %v", r.TotalReqCount, r.TotalReqErrorCount, r.TotalReqTimeCount/r.TotalReqCount, *r.ReqStatusCodeCountMap, *r.ReqTimeMetricList)
 	} else {
-		return fmt.Sprintf("Summarized: Total request: %10d, Total error: %v, Avg request time:%4d, StatusCodeCountMap: %v, TimeMetricList: %v", r.TotalCount, r.TotalErrorCount, r.TotalTimeCount/r.TotalCount, *r.StatusCodeCountMap, *r.TimeMetricList)
+		return fmt.Sprintf("Summarized: Total request: %10d, Total error: %v, Avg request time:%4d, ReqStatusCodeCountMap: %v, ReqTimeMetricList: %v", r.TotalReqCount, r.TotalReqErrorCount, r.TotalReqTimeCount/r.TotalReqCount, *r.ReqStatusCodeCountMap, *r.ReqTimeMetricList)
 	}
 }
 
-func (r *ResultDataCollection) clone() *ResultDataCollection {
-	dc := &ResultDataCollection{}
+func (r *ReqResultDataCollection) clone() *ReqResultDataCollection {
+	dc := &ReqResultDataCollection{}
 	dc.IsDelta = r.IsDelta
-	dc.TotalCount = r.TotalCount
-	dc.TotalTimeCount = r.TotalTimeCount
-	dc.TotalErrorCount = r.TotalErrorCount
+	dc.TotalReqCount = r.TotalReqCount
+	dc.TotalReqTimeCount = r.TotalReqTimeCount
+	dc.TotalReqErrorCount = r.TotalReqErrorCount
 
 	statusCodeCountMap := make(map[int]int, 0)
-	for k, v := range *r.StatusCodeCountMap {
+	for k, v := range *r.ReqStatusCodeCountMap {
 		statusCodeCountMap[k] = v
 	}
-	dc.StatusCodeCountMap = &statusCodeCountMap
+	dc.ReqStatusCodeCountMap = &statusCodeCountMap
 
 	metricsList := make([]*TimeMetric, 0)
-	for _, metric := range *r.TimeMetricList {
+	for _, metric := range *r.ReqTimeMetricList {
 		metricsList = append(metricsList, metric)
 	}
-	dc.TimeMetricList = &metricsList
+	dc.ReqTimeMetricList = &metricsList
 
 	return dc
 }
 
-func NewResultDataCollection(isDelta bool) *ResultDataCollection {
+func NewResultDataCollection(isDelta bool) *ReqResultDataCollection {
 	statusCodeCountMap := make(map[int]int, 0)
 	timeMetricList := generateTimeMetricList(requestTimeMetrics)
 
-	return &ResultDataCollection{0, 0, 0, &statusCodeCountMap, &timeMetricList, isDelta}
+	return &ReqResultDataCollection{0, 0, 0, &statusCodeCountMap, &timeMetricList, isDelta}
 }
 
-func (r *ResultDataCollection) count(reqResult *model.ReqestResult, lock *sync.RWMutex) {
+func (r *ReqResultDataCollection) count(reqResult *model.ReqestResult, lock *sync.RWMutex) {
 	logrus.Debugf("Receive request result: %v", reqResult)
 	lock.RLock()
 
 	//total Count
-	r.TotalCount += 1
-	r.TotalTimeCount += reqResult.RequestTime
+	r.TotalReqCount += 1
+	r.TotalReqTimeCount += reqResult.RequestTime
 
 	//error Count
 	if reqResult.IsError {
-		r.TotalErrorCount += 1
+		r.TotalReqErrorCount += 1
 	}
 
 	//error sorter
-	statusCodeCountMap := *r.StatusCodeCountMap
+	statusCodeCountMap := *r.ReqStatusCodeCountMap
 	_, exist := statusCodeCountMap[reqResult.ResponseCode]
 	if !exist {
 		statusCodeCountMap[reqResult.ResponseCode] = 0
@@ -147,7 +147,7 @@ func (r *ResultDataCollection) count(reqResult *model.ReqestResult, lock *sync.R
 	statusCodeCountMap[reqResult.ResponseCode] += 1
 
 	//time requestTimeMetrics
-	for _, timeMetric := range *r.TimeMetricList {
+	for _, timeMetric := range *r.ReqTimeMetricList {
 		if timeMetric.increment(reqResult.RequestTime) {
 			break
 		}

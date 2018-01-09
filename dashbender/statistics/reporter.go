@@ -14,11 +14,11 @@ import (
 var reportData *ReportData
 
 type Reporter struct {
-	reqResultDataChan        chan *ResultDataCollection
+	reqResultDataChan        chan *ReqResultDataCollection
 	validationResultDataChan chan *validation.RespValidationData
 }
 
-func NewReportor(reqResultChan chan *ResultDataCollection, validationResultChan chan *validation.RespValidationData) *Reporter {
+func NewReportor(reqResultChan chan *ReqResultDataCollection, validationResultChan chan *validation.RespValidationData) *Reporter {
 	return &Reporter{reqResultChan, validationResultChan}
 }
 
@@ -31,18 +31,18 @@ func (r *Reporter) Start(ctx context.Context) {
 		select {
 		case reqResult := <-r.reqResultDataChan:
 			if reqResult.IsDelta {
-				reportData.DeltaResultData = reqResult
-				reportData.DeltaTimeTaken = int64(60)
+				reportData.DeltaReqResult = reqResult
+				reportData.DeltaReportTimeTaken = int64(60)
 			} else {
-				reportData.TotalResultData = reqResult
-				reportData.TotalTimeTaken = getTimeTake(cfg.BenchmarkStartTime)
+				reportData.TotalReqResult = reqResult
+				reportData.TotalReportTimeTaken = getTimeTake(cfg.BenchmarkStartTime)
 			}
 			logrus.Infof("Request Counter: %v", reqResult)
 		case validationResultData := <-r.validationResultDataChan:
 			if validationResultData.IsDelta {
-				reportData.DeltaValidationResultData = validationResultData
+				reportData.DeltaValidationResult = validationResultData
 			} else {
-				reportData.TotalValidationResultData = validationResultData
+				reportData.TotalValidationResult = validationResultData
 			}
 			logrus.Infof("Validation counter: %v", validationResultData)
 		case <-ctx.Done():
@@ -53,20 +53,20 @@ func (r *Reporter) Start(ctx context.Context) {
 
 type ReportData struct {
 	//time taken from benchmart start (seconds)
-	DeltaTimeTaken int64
-	TotalTimeTaken int64
+	DeltaReportTimeTaken int64
+	TotalReportTimeTaken int64
 
 	//request result
-	DeltaResultData *ResultDataCollection
-	TotalResultData *ResultDataCollection
+	DeltaReqResult *ReqResultDataCollection
+	TotalReqResult *ReqResultDataCollection
 
 	//validation result
-	DeltaValidationResultData *validation.RespValidationData
-	TotalValidationResultData *validation.RespValidationData
+	DeltaValidationResult *validation.RespValidationData
+	TotalValidationResult *validation.RespValidationData
 }
 
 func (r *ReportData) String() string {
-	return fmt.Sprintf("%v, %v, %v, %v", r.TotalResultData, r.TotalValidationResultData, r.DeltaResultData, r.DeltaValidationResultData)
+	return fmt.Sprintf("%v, %v, %v, %v", r.TotalReqResult, r.TotalValidationResult, r.DeltaReqResult, r.DeltaValidationResult)
 }
 
 func ReportHandler(w http.ResponseWriter, r *http.Request) {

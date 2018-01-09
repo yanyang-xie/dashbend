@@ -2,12 +2,12 @@ package validation
 
 import (
 	"context"
+	"dashbend/dashbender/cfg"
 	"dashbend/dashbender/model"
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"sync"
 	"time"
-	"dashbend/dashbender/cfg"
-	"fmt"
 )
 
 type ResultValidator struct {
@@ -35,7 +35,7 @@ func NewResultValidator(respValidationChan chan *model.RespValidationModel, vali
 
 	// using a channel of fixed channel to make the used resource of validation can be hold.
 	actualRespValidationChan := make(chan *model.RespValidationModel, cfg.ValidationConf.ThreadNum)
-	checkPoint := int64(float64(1)/cfg.ValidationConf.Percent)
+	checkPoint := int64(float64(1) / cfg.ValidationConf.Percent)
 
 	return &ResultValidator{respValidationChan, validationResultChan, actualRespValidationChan, mutex, deltaValidationData, totalValidationData, 0, checkPoint}
 }
@@ -68,17 +68,17 @@ func (r *ResultValidator) Start(ctx context.Context) {
 	}
 }
 
-func (r *ResultValidator) addToActualValidation(respVM *model.RespValidationModel){
+func (r *ResultValidator) addToActualValidation(respVM *model.RespValidationModel) {
 	r.MutexLock.RLock()
 	r.RespReceivedCount += 1
 	r.MutexLock.RUnlock()
 
-	if r.RespReceivedCount% r.CheckPoint == 0 && len(r.ActualRespValidationChan) < cap(r.ActualRespValidationChan){
+	if r.RespReceivedCount%r.CheckPoint == 0 && len(r.ActualRespValidationChan) < cap(r.ActualRespValidationChan) {
 		r.ActualRespValidationChan <- respVM
 	}
 }
 
-func (r *ResultValidator) startValidationWoker(ctx context.Context){
+func (r *ResultValidator) startValidationWoker(ctx context.Context) {
 	for {
 		select {
 		case respModel := <-r.ActualRespValidationChan:
@@ -95,7 +95,7 @@ func (r *ResultValidator) startValidationWoker(ctx context.Context){
 
 }
 
-func (r *ResultValidator) doValidation(respModel *model.RespValidationModel){
+func (r *ResultValidator) doValidation(respModel *model.RespValidationModel) {
 	// @todo if error happend, count the error, and put error messages into r.ErrorDetailList
 	logrus.Infof("Do validation. Received:%v, checkponit: %v", r.RespReceivedCount, r.CheckPoint)
 	logrus.Debugf("Do validation. Model:%v", respModel)
@@ -110,15 +110,15 @@ type RespValidationData struct {
 	IsDelta         bool
 }
 
-func NewRespValidationData(isDelta bool) *RespValidationData{
-	return &RespValidationData{0,0, make([]string, 0), isDelta}
+func NewRespValidationData(isDelta bool) *RespValidationData {
+	return &RespValidationData{0, 0, make([]string, 0), isDelta}
 }
 
-func (r *RespValidationData) String() string{
-	if r.IsDelta{
-		return fmt.Sprintf("Delta      validation: TotalCount:%10d, ErrorCount:%10d, Errors:%v", r.TotalCount, r.ErrorCount, r.ErrorDetailList)
-	}else{
-		return fmt.Sprintf("Summarized validation: TotalCount:%10d, ErrorCount:%10d, Errors:%v", r.TotalCount, r.ErrorCount, r.ErrorDetailList)
+func (r *RespValidationData) String() string {
+	if r.IsDelta {
+		return fmt.Sprintf("Delta      validation: TotalReqCount:%10d, ErrorCount:%10d, Errors:%v", r.TotalCount, r.ErrorCount, r.ErrorDetailList)
+	} else {
+		return fmt.Sprintf("Summarized validation: TotalReqCount:%10d, ErrorCount:%10d, Errors:%v", r.TotalCount, r.ErrorCount, r.ErrorDetailList)
 	}
 }
 

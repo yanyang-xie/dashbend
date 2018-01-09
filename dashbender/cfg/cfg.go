@@ -32,7 +32,7 @@ type (
 		ListenPort int
 	}
 
-	validationConf struct{
+	validationConf struct {
 		Percent   float64
 		ThreadNum int
 	}
